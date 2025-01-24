@@ -1,2 +1,2 @@
-# Automate-Roaster-Creation
-Python &amp; Excel
+pandas
+openpyxl
