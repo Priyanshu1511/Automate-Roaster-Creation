@@ -1,0 +1,89 @@
+import pandas as pd
+import random
+import datetime
+import os
+
+# Define the roster parameters
+people = ["Kritika Kashyap", "Manish Kumar", "Manjeet Duggal", "Aman Kumar Nutiyal", 
+          "Praduman Tiwari", "Shiv", "Kamini", "Mohammad Asif", "MOHAMMAD WAJID", 
+          "RAHUL RAJ", "Bittu Kumar", "Neetu Joshi", "Kumkum", "Priyanshu Sharma", 
+          "Lalit Gupta", "Manish Sah", "SUKHDEEP SINGH", "PAL ANUJ KUMAR", 
+          "HARSH OJHA", "Supriya Pandey", "Rahul Sahu", "Priyanshee", 
+          "SONU KUMAR", "Jerim", "HIMANSHU SEMWAL"]
+
+girls = ["Kritika Kashyap", "Kamini", "Neetu Joshi", "Kumkum", 
+         "Supriya Pandey", "Priyanshee"]
+boys = list(set(people) - set(girls))
+shifts = ["A", "B", "C"]
+
+# Initialize the roster
+days = 30
+roster = pd.DataFrame(index=people, columns=range(1, days + 1))
+
+# Helper function to assign shifts, ensuring C shift has 6 consecutive days for one person
+def assign_shifts_with_c_constraint(available_people, c_shift_tracker):
+    # Ensure current C shift person is valid or select a new one
+    c_shift_person = c_shift_tracker.get("current_person")
+    if not c_shift_person or c_shift_tracker["remaining_days"] == 0 or c_shift_person not in available_people:
+        # Select a new person for C shift if no one is currently assigned or their 6 days are over
+        c_shift_person = random.choice(available_people)
+        c_shift_tracker["current_person"] = c_shift_person
+        c_shift_tracker["remaining_days"] = 6
+
+    # Assign C shift to the current person for this day
+    if c_shift_person in available_people:
+        available_people.remove(c_shift_person)
+    else:
+        print(f"Warning: {c_shift_person} was not in available_people. Selecting a new person.")
+        c_shift_person = random.choice(available_people)
+        available_people.remove(c_shift_person)
+        c_shift_tracker["current_person"] = c_shift_person
+        c_shift_tracker["remaining_days"] = 6
+
+    # Assign A and B shifts from remaining available people
+    random.shuffle(available_people)
+    a_shift = available_people[:5]
+    b_shift = available_people[5:10]
+    c_shift = [c_shift_person]
+
+    # Decrement remaining days for the current C shift person
+    c_shift_tracker["remaining_days"] -= 1
+
+    return a_shift, b_shift, c_shift
+
+# Generate the roster with constraints
+c_shift_tracker = {"current_person": None, "remaining_days": 0}  # Track C shift assignments
+
+for day in range(1, days + 1):
+    off_people = random.sample(people, 8)  # Randomly select 8 people for OFF days
+    for person in off_people:
+        roster.at[person, day] = "OFF"
+
+    # Assign shifts only to those who are not OFF
+    available_people = [p for p in people if roster.at[p, day] != "OFF"]
+
+    # Ensure there are enough people available for shift assignment
+    if len(available_people) >= 15:
+        a_shift, b_shift, c_shift = assign_shifts_with_c_constraint(available_people, c_shift_tracker)
+        for person in a_shift:
+            roster.at[person, day] = "A"
+        for person in b_shift:
+            roster.at[person, day] = "B"
+        for person in c_shift:
+            roster.at[person, day] = "C"
+
+# Ensure girls are only assigned to A shift
+for day in range(1, days + 1):
+    for girl in girls:
+        if roster.at[girl, day] in ["B", "C"]:
+            roster.at[girl, day] = "A"
+
+# Save the roster to an Excel file with a unique name
+timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+file_name = f"roster_{timestamp}.xlsx"
+
+if os.path.exists(file_name):
+    os.remove(file_name)
+
+roster.to_excel(file_name)
+print(f"Roster generated and saved as {file_name}")
